@@ -5,8 +5,8 @@ Công cụ tính GPA theo học kỳ và CPA toàn khóa (thang 4), chạy hoàn
 ## Chạy
 
 ```bash
-git clone git@github.com:<username>/gpa-calculator.git
-cd gpa-calculator
+git clone git@github.com:GQTtest/GPA-CPA-calculator.git
+cd GPA-CPA-calculator
 ```
 
 Mở `index.html` bằng trình duyệt (double-click là được). Không cần cài thêm gì.
