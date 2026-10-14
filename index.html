@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tính GPA / CPA</title>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--fg:#17202b;--muted:#667385;--line:#dde2e9;--acc:#1f5eff}
+@media(prefers-color-scheme:dark){:root{--bg:#0e131a;--card:#161d27;--fg:#e7ebf1;--muted:#8794a6;--line:#27313f;--acc:#6b95ff}}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--fg)}
+main{max-width:720px;margin:0 auto;padding:24px 16px 48px}
+h1{font-size:1.5rem;margin:0 0 4px}
+h2{font-size:1rem;margin:0 0 8px}
+p.sub{margin:0 0 20px;color:var(--muted)}
+section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px}
+.hero{display:flex;align-items:baseline;gap:20px;flex-wrap:wrap}
+.hero .big{font-size:3rem;font-weight:700;line-height:1;color:var(--acc)}
+.hero span{color:var(--muted)}
+.wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th,td{padding:6px 4px;text-align:left}
+th{color:var(--muted);font-weight:500;font-size:.85rem;border-bottom:1px solid var(--line)}
+input,select,button{font:inherit;color:inherit;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 8px;max-width:100%}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+td input[type=number]{width:64px}
+td input[type=text]{width:100%;min-width:120px}
+button{cursor:pointer}
+button.main{background:var(--acc);border-color:var(--acc);color:#fff}
+.bar{display:flex;gap:8px;margin-top:12px}
+small{color:var(--muted)}
+</style>
+</head>
+<body>
+<main>
+  <h1>Tính GPA / CPA</h1>
+  <p class="sub">Thêm môn học, điểm chữ và số tín chỉ. Dữ liệu lưu ngay trong trình duyệt của bạn.</p>
+
+  <section class="hero">
+    <div><div class="big" id="cpa">0.00</div><span>CPA (thang 4)</span></div>
+    <div><b id="cred">0</b> <span>tín chỉ tích lũy</span></div>
+    <div><b id="nsem">0</b> <span>học kỳ</span></div>
+  </section>
+
+  <section>
+    <h2>Danh sách môn học</h2>
+    <div class="wrap">
+      <table>
+        <thead><tr><th>Kỳ</th><th>Môn</th><th>Tín chỉ</th><th>Điểm</th><th></th></tr></thead>
+        <tbody id="body"></tbody>
+      </table>
+    </div>
+    <div class="bar">
+      <button class="main" id="add">Thêm môn</button>
+      <button id="reset">Xóa tất cả</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>GPA theo học kỳ</h2>
+    <table>
+      <thead><tr><th>Học kỳ</th><th>Tín chỉ</th><th>GPA</th></tr></thead>
+      <tbody id="sems"></tbody>
+    </table>
+  </section>
+
+  <small>Thang điểm quy đổi nằm ở biến <code>SCALE</code> trong file này: A+ và A = 4.0, B+ = 3.5, B = 3.0, C+ = 2.5, C = 2.0, D+ = 1.5, D = 1.0, F = 0. Đối chiếu với quy chế của trường và sửa nếu khác.</small>
+</main>
+
+<script>
+const SCALE = {"A+":4,"A":4,"B+":3.5,"B":3,"C+":2.5,"C":2,"D+":1.5,"D":1,"F":0};
+const KEY = "gpa-calc-v1";
+const $ = s => document.querySelector(s);
+let rows = [];
+try { rows = JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) {}
+
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(rows)); } catch (e) {} };
+const esc = s => s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function calc(list) {
+  let c = 0, p = 0;
+  for (const r of list) {
+    if (r.credits > 0 && r.grade in SCALE) { c += r.credits; p += r.credits * SCALE[r.grade]; }
+  }
+  return { c, gpa: c ? p / c : 0 };
+}
+
+function update() {
+  const all = calc(rows);
+  $("#cpa").textContent = all.gpa.toFixed(2);
+  $("#cred").textContent = all.c;
+  const sems = [...new Set(rows.map(r => r.sem))].sort((a, b) => a - b);
+  $("#nsem").textContent = sems.length;
+  $("#sems").innerHTML = sems.map(s => {
+    const x = calc(rows.filter(r => r.sem === s));
+    return `<tr><td>Kỳ ${s}</td><td>${x.c}</td><td>${x.gpa.toFixed(2)}</td></tr>`;
+  }).join("");
+  save();
+}
+
+function draw() {
+  $("#body").innerHTML = rows.map((r, i) => `<tr data-i="${i}">
+    <td><input type="number" min="1" data-k="sem" value="${r.sem}" aria-label="Học kỳ"></td>
+    <td><input type="text" data-k="name" value="${esc(r.name)}" placeholder="Tên môn" aria-label="Tên môn"></td>
+    <td><input type="number" min="0" data-k="credits" value="${r.credits}" aria-label="Tín chỉ"></td>
+    <td><select data-k="grade" aria-label="Điểm chữ">${Object.keys(SCALE).map(g => `<option${g === r.grade ? " selected" : ""}>${g}</option>`).join("")}</select></td>
+    <td><button data-del aria-label="Xóa môn">Xóa</button></td></tr>`).join("");
+  update();
+}
+
+$("#body").addEventListener("input", e => {
+  const k = e.target.dataset.k;
+  if (!k) return;
+  const r = rows[e.target.closest("tr").dataset.i];
+  r[k] = (k === "name" || k === "grade") ? e.target.value : (+e.target.value || 0);
+  update();
+});
+$("#body").addEventListener("click", e => {
+  if (e.target.matches("[data-del]")) { rows.splice(e.target.closest("tr").dataset.i, 1); draw(); }
+});
+$("#add").onclick = () => {
+  const last = rows[rows.length - 1];
+  rows.push({ sem: last ? last.sem : 1, name: "", credits: 3, grade: "A" });
+  draw();
+};
+$("#reset").onclick = () => { if (confirm("Xóa toàn bộ dữ liệu?")) { rows = []; draw(); } };
+draw();
+</script>
+</body>
+</html>
